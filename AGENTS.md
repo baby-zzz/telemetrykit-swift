@@ -20,7 +20,10 @@ Instructions for coding agents (and humans) working on TelemetryKit for Swift.
 - CI: GitHub Actions (`.github/workflows/ci.yml`).
 
 ## Releases
-- release-please (`.github/workflows/release.yml`) keeps a release pull request open from the Conventional Commits:
-  `feat` bumps the minor version, `fix` the patch (before 1.0, a breaking `!` bumps the minor). Merging it tags
-  `vX.Y.Z`, updates `CHANGELOG.md` and the version strings marked `x-release-please-version`, and creates the GitHub
-  Release with its notes. Don't edit versions or the changelog by hand.
+- Development happens on the maintainers' own Git server; GitHub is the public mirror. Releases are cut there by a
+  release job, never on GitHub: it derives the next version from the Conventional Commits since the last `vX.Y.Z` tag
+  (`feat` bumps the minor version, `fix`/`perf` the patch; before 1.0 a breaking `!` bumps the minor), writes the
+  `CHANGELOG.md` section and the version strings marked `x-release-please-version`, commits `chore(release): vX.Y.Z`,
+  tags, runs the tests and, after an approval, pushes to GitHub and creates the GitHub Release with the notes.
+- Don't edit versions or the changelog by hand, and keep the version markers.
+- Contributions on GitHub are welcome as pull requests; maintainers bring merged changes into the main repository.
