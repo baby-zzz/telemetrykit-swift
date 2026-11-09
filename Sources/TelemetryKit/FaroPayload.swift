@@ -232,5 +232,5 @@ public enum FaroTimestamp {
 /// The library's own identity, the default `sdk` of the meta
 public enum TelemetryKitInfo {
     public static let name = "telemetrykit-swift"
-    public static let version = "0.1.0" // x-release-please-version
+    public static let version = "0.2.0" // x-release-please-version
 }
