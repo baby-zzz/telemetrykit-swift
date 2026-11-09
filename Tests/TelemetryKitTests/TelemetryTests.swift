@@ -136,6 +136,43 @@ struct TelemetryTests {
         #expect(client.pendingCount == 0)
     }
 
+    @Test func becomingActiveStartsASessionWithoutOtherItems() async throws {
+        let box = ClockBox(Date(timeIntervalSince1970: 1_000))
+        let (client, transport) = try Self.client(remote: .enabled, now: { box.now })
+        client.touchSession()
+        client.touchSession() // same session: nothing more
+        #expect(client.pendingCount == 1)
+        #expect(await client.flush())
+        var payloads = try await transport.payloads()
+        #expect(payloads.count == 1 && payloads[0].events?.map(\.name) == ["session_start"])
+        let first = payloads[0].meta.session?.id
+
+        box.now = box.now + 10 * 60 // active within the timeout: still the same session, no event
+        client.touchSession()
+        #expect(client.pendingCount == 0)
+        box.now = box.now + 14 * 60 // 14 min after the last touch: still running (the touch extended it)
+        client.record(Self.event("e"))
+        #expect(await client.flush())
+        payloads = try await transport.payloads()
+        #expect(payloads.last?.events?.map(\.name) == ["e"] && payloads.last?.meta.session?.id == first)
+
+        box.now = box.now + 16 * 60 // after the timeout: a new session
+        client.touchSession()
+        #expect(await client.flush())
+        payloads = try await transport.payloads()
+        #expect(payloads.last?.events?.map(\.name) == ["session_start"] && payloads.last?.meta.session?.id != first)
+    }
+
+    @Test func noSessionWithoutConsentOrWithTheFlagOff() throws {
+        let (client, _) = try Self.client(remote: .disabled)
+        client.touchSession()
+        #expect(client.pendingCount == 0)
+        let (withoutConsent, _) = try Self.client(remote: .enabled)
+        withoutConsent.setConsent(false)
+        withoutConsent.touchSession()
+        #expect(withoutConsent.pendingCount == 0)
+    }
+
     @Test func serverErrorsAreRetriedAndRefusalsDropped() async throws {
         // A fixed clock: the 5 s backoff must not run out however slowly the test runs
         let box = ClockBox(Date(timeIntervalSince1970: 1_000))

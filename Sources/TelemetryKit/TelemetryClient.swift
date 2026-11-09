@@ -214,9 +214,19 @@ public final class TelemetryClient: @unchecked Sendable {
 
     /// - Parameter scrub: nil follows `Configuration.scrubPolicy`; true scrubs every free string of the item; false none
     public func record(_ item: TelemetryItem, scrub override: Bool? = nil) {
-        let date = now()
         let policy = override.map { $0 ? ScrubPolicy.all : .none } ?? configuration.scrubPolicy
-        let clean = item.scrubbed(with: scrub, policy: policy)
+        enqueue(item.scrubbed(with: scrub, policy: policy))
+    }
+
+    /// The app became active: counts as activity, so a session starts (`session_start`, nothing else) when none is
+    /// running or the last one timed out, and a running one is extended. A no-op without consent or with the remote
+    /// gate disabled, like recording.
+    public func touchSession() {
+        enqueue(nil)
+    }
+
+    private func enqueue(_ clean: TelemetryItem?) {
+        let date = now()
         let outcome = state.withLock { state -> (session: TelemetrySession, flush: TimeInterval?)? in
             guard state.consent, state.remote != .disabled else { return nil }
             let (session, isNew) = TelemetrySession.next(state.session, now: date, inactivityTimeout: configuration.sessionInactivityTimeout)
@@ -226,7 +236,8 @@ public final class TelemetryClient: @unchecked Sendable {
                 let start = FaroEvent(name: "session_start", domain: configuration.eventDomain, timestamp: FaroTimestamp.string(date), attributes: nil)
                 state.pending.append(Pending(meta: meta, item: .event(start), recordedAt: date))
             }
-            state.pending.append(Pending(meta: meta, item: clean, recordedAt: date))
+            if let clean { state.pending.append(Pending(meta: meta, item: clean, recordedAt: date)) }
+            if !isNew && clean == nil { return (session, nil) }
             if state.pending.count > configuration.maxPending { state.pending.removeFirst(state.pending.count - configuration.maxPending) }
             guard state.remote == .enabled else { return (session, nil) }
             if state.pending.count >= configuration.maxBatch { return (session, 0) }

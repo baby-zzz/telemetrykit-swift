@@ -74,7 +74,7 @@ Telemetry.measurement("socket_reconnect", ["reconnect_ms": 1840])
 
 // 5. Lifecycle (e.g. from your scene delegate or ScenePhase handler).
 Telemetry.applicationDidEnterBackground()   // flush within a UIKit background task, keep the rest in the file
-Telemetry.applicationDidBecomeActive()
+Telemetry.applicationDidBecomeActive()   // also starts a session (session_start) when none is running
 ```
 
 Names, categories and log messages are `StaticString`s on purpose: only constants say what happened; values are data and

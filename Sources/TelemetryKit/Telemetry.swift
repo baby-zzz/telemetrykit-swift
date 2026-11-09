@@ -150,9 +150,11 @@ public enum Telemetry {
         #endif
     }
 
-    /// Back in the foreground: what was kept for the next launch is still queued in memory, so the file goes (no
-    /// duplicates at the next launch) and the queue is sent
+    /// Back in the foreground (and at launch): what was kept for the next launch is still queued in memory, so the file
+    /// goes (no duplicates at the next launch) and the queue is sent; and the app being active starts a session
+    /// (`session_start`) when none is running, so sessions count people using the app, not only those with errors
     public static func applicationDidBecomeActive() {
+        client?.touchSession()
         client?.foregrounded()
     }
 
