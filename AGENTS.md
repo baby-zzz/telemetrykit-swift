@@ -18,3 +18,9 @@ Instructions for coding agents (and humans) working on TelemetryKit for Swift.
 - `swift build` and `swift test` must pass (Swift Testing).
 - `swiftlint lint` when SwiftLint is installed; fix code rather than adding inline suppressions.
 - CI: GitHub Actions (`.github/workflows/ci.yml`).
+
+## Releases
+- release-please (`.github/workflows/release.yml`) keeps a release pull request open from the Conventional Commits:
+  `feat` bumps the minor version, `fix` the patch (before 1.0, a breaking `!` bumps the minor). Merging it tags
+  `vX.Y.Z`, updates `CHANGELOG.md` and the version strings marked `x-release-please-version`, and creates the GitHub
+  Release with its notes. Don't edit versions or the changelog by hand.

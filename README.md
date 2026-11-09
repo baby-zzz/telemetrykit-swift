@@ -17,14 +17,16 @@ This is an independent project and is not affiliated with, endorsed by or sponso
 
 Swift Package Manager, in `Package.swift`:
 
+<!-- x-release-please-start-version -->
 ```swift
 dependencies: [
-    .package(url: "https://example.com/your-host/telemetrykit-swift.git", from: "0.1.0"),
+    .package(url: "https://github.com/baby-zzz/telemetrykit-swift.git", from: "0.1.0"),
 ],
 targets: [
     .target(name: "MyApp", dependencies: [.product(name: "TelemetryKit", package: "telemetrykit-swift")]),
 ]
 ```
+<!-- x-release-please-end -->
 
 In Xcode: File > Add Package Dependencies, and enter the repository URL. (Replace the URL with where the package is hosted.)
 
