@@ -30,6 +30,14 @@ targets: [
 
 In Xcode: File > Add Package Dependencies, and enter the repository URL. (Replace the URL with where the package is hosted.)
 
+### Using an unreleased build
+
+To try changes in an app before they are tagged, use a local checkout instead of the GitHub URL:
+
+- **Xcode:** drag the `telemetrykit-swift` folder into the project navigator (or File → Add Package Dependencies → Add
+  Local…). A local package with the same name overrides the remote dependency until you remove it again.
+- **Package.swift:** `.package(path: "../telemetrykit-swift")` in place of the `url:` dependency.
+
 ## Quick start
 
 ```swift
