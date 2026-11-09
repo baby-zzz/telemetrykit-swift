@@ -7,7 +7,11 @@
     ".": {
       "package-name": "telemetrykit-swift",
       "changelog-path": "CHANGELOG.md",
-      "extra-files": ["Sources/TelemetryKit/FaroPayload.swift", "README.md"]
+      "extra-files": [
+        "Sources/TelemetryKit/FaroPayload.swift",
+        "README.md"
+      ]
     }
-  }
+  },
+  "include-component-in-tag": false
 }
