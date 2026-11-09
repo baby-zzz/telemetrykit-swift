@@ -3,6 +3,13 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.2.0](https://github.com/baby-zzz/telemetrykit-swift/compare/telemetrykit-swift-v0.1.0...telemetrykit-swift-v0.2.0) (2026-11-09)
+
+
+### Features
+
+* TelemetryKit 0.1.0, a minimal Grafana Faro receiver client ([98ec409](https://github.com/baby-zzz/telemetrykit-swift/commit/98ec4097ad7cdea415a2b6b200068ac43a8fbf3c))
+
 ## [0.1.0] - 2026-11-09
 
 First release, extracted from the Baby Zzz iOS app.
