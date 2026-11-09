@@ -116,7 +116,13 @@ public enum Telemetry {
                            scrub: Bool? = nil) {
         guard let client else { return }
         client.record(.log(FaroLog(message: "\(message)", level: level, timestamp: timestamp(),
-                                   context: context.merging(["category": "\(category)"]) { old, _ in old })), scrub: scrub)
+                                   context: logContext(context, category: "\(category)"))), scrub: scrub)
+    }
+
+    /// The log's context with the library's `category`, which wins over a caller's own `category` key: that key is exempt
+    /// from scrubbing, so a caller's value there would bypass the scrub
+    static func logContext(_ context: [String: String], category: String) -> [String: String] {
+        context.merging(["category": category]) { _, library in library }
     }
 
     /// A measurement: a type and numeric values

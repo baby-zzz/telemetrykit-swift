@@ -150,4 +150,9 @@ struct ScrubPolicyTests {
         #expect(Self.scrubbedFields(skipped).isEmpty)
         for case .event(let event) in skipped { #expect(event.attributes?["a"] == Self.secret) }
     }
+
+    @Test func theLibraryCategoryWinsOverACallersCategoryKey() {
+        let context = Telemetry.logContext(["category": "jane@example.com", "k": "v"], category: "auth")
+        #expect(context == ["category": "auth", "k": "v"])
+    }
 }
