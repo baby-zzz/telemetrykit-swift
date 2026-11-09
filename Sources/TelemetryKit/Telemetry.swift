@@ -88,38 +88,41 @@ public enum Telemetry {
     // MARK: - Signals
 
     /// A named event; attribute values are low-cardinality strings
-    public static func event(_ name: StaticString, _ attributes: [String: String] = [:]) {
+    public static func event(_ name: StaticString, _ attributes: [String: String] = [:], scrub: Bool? = nil) {
         guard let client else { return }
         client.record(.event(FaroEvent(name: "\(name)", domain: client.configuration.eventDomain, timestamp: timestamp(),
-                                       attributes: attributes.isEmpty ? nil : attributes)))
+                                       attributes: attributes.isEmpty ? nil : attributes)), scrub: scrub)
     }
 
     /// At most once per `interval` per `key` (default: the name), with `suppressed`: how many were dropped since
-    public static func eventThrottled(_ name: StaticString, _ attributes: [String: String] = [:], key: String? = nil, interval: TimeInterval = 60) {
+    public static func eventThrottled(_ name: StaticString, _ attributes: [String: String] = [:], key: String? = nil, interval: TimeInterval = 60,
+                                       scrub: Bool? = nil) {
         guard let client else { return }
         let event = FaroEvent(name: "\(name)", domain: client.configuration.eventDomain, timestamp: timestamp(), attributes: attributes)
-        client.recordThrottled(event, key: key ?? "\(name)", interval: interval)
+        client.recordThrottled(event, key: key ?? "\(name)", interval: interval, scrub: scrub)
     }
 
     /// An error the host handled: its Swift type and `errorValue`, with where it happened (`context`, a constant). The
-    /// message is scrubbed when the item is queued.
-    public static func error(_ error: Error, _ context: StaticString) {
+    /// message is scrubbed when the item is queued, as `Configuration.scrubPolicy` says; `scrub` overrides that for this call
+    /// (true: every free string, false: none). The same `scrub` parameter is on every recording function.
+    public static func error(_ error: Error, _ context: StaticString, scrub: Bool? = nil) {
         guard let client else { return }
         client.record(.exception(FaroException(type: String(describing: type(of: error)), value: client.errorValue(error), timestamp: timestamp(),
-                                               context: ["where": "\(context)"])))
+                                               context: ["where": "\(context)"])), scrub: scrub)
     }
 
     /// A warning or error line: a constant message, a category, and optional low-cardinality context
-    public static func log(_ level: FaroLog.Level, _ category: StaticString, _ message: StaticString, _ context: [String: String] = [:]) {
+    public static func log(_ level: FaroLog.Level, _ category: StaticString, _ message: StaticString, _ context: [String: String] = [:],
+                           scrub: Bool? = nil) {
         guard let client else { return }
         client.record(.log(FaroLog(message: "\(message)", level: level, timestamp: timestamp(),
-                                   context: context.merging(["category": "\(category)"]) { old, _ in old })))
+                                   context: context.merging(["category": "\(category)"]) { old, _ in old })), scrub: scrub)
     }
 
     /// A measurement: a type and numeric values
-    public static func measurement(_ type: StaticString, _ values: [String: Double], _ context: [String: String] = [:]) {
+    public static func measurement(_ type: StaticString, _ values: [String: Double], _ context: [String: String] = [:], scrub: Bool? = nil) {
         guard let client else { return }
-        client.record(.measurement(FaroMeasurement(type: "\(type)", values: values, timestamp: timestamp(), context: context.isEmpty ? nil : context)))
+        client.record(.measurement(FaroMeasurement(type: "\(type)", values: values, timestamp: timestamp(), context: context.isEmpty ? nil : context)), scrub: scrub)
     }
 
     // MARK: - Lifecycle

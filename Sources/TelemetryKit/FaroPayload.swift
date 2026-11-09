@@ -194,23 +194,27 @@ public enum TelemetryItem: Codable, Equatable, Sendable {
     case exception(FaroException)
     case measurement(FaroMeasurement)
 
-    /// The same item with every free string scrubbed. Names, types and log messages are the host's own constants
-    /// (`StaticString` in the facade) and are sent as they are.
-    public func scrubbed(with scrub: TelemetryScrub = .default) -> TelemetryItem {
-        func scrubMap(_ map: [String: String]?) -> [String: String]? { map?.mapValues { scrub.text($0) } }
+    /// The same item with its free strings scrubbed as `policy` says (default: all of them). Names, types, levels,
+    /// `where`, timestamps and meta are the host's own constants and are sent as they are.
+    public func scrubbed(with scrub: TelemetryScrub = .default, policy: ScrubPolicy = .all) -> TelemetryItem {
+        func scrubMap(_ map: [String: String]?, _ on: Bool) -> [String: String]? { on ? map?.mapValues { scrub.text($0) } : map }
         switch self {
         case .event(var event):
-            event.attributes = scrubMap(event.attributes)
+            event.attributes = scrubMap(event.attributes, policy.eventAttributes)
             return .event(event)
         case .log(var log):
-            log.context = scrubMap(log.context)
+            if policy.logMessages { log.message = scrub.text(log.message) }
+            log.context = scrubMap(log.context, policy.logContext)
             return .log(log)
         case .exception(var exception):
-            exception.value = scrub.text(exception.value)
-            exception.context = scrubMap(exception.context)
+            if policy.exceptionValues { exception.value = scrub.text(exception.value) }
+            if policy.exceptionContext, let context = exception.context {
+                // `where` is the host's constant, not free text
+                exception.context = context.reduce(into: [:]) { $0[$1.key] = $1.key == "where" ? $1.value : scrub.text($1.value) }
+            }
             return .exception(exception)
         case .measurement(var measurement):
-            measurement.context = scrubMap(measurement.context)
+            measurement.context = scrubMap(measurement.context, policy.measurementContext)
             return .measurement(measurement)
         }
     }

@@ -88,6 +88,9 @@ public final class TelemetryClient: @unchecked Sendable {
         public var extraSecretParameters: [String] = []
         /// Extra regular expressions for the scrub (each match becomes `[REDACTED]`)
         public var extraScrubPatterns: [String] = []
+        /// Which free strings are scrubbed; default `.all`. Turning fields off sends raw values: that is the host's
+        /// responsibility. A per-call `scrub:` overrides it.
+        public var scrubPolicy: ScrubPolicy = .all
 
         public init(endpoint: URL, app: FaroMeta.App, browser: FaroMeta.Browser, eventDomain: String, consentKey: String,
                     debugOverrideKey: String, sessionKey: String, release: Bool) {
@@ -209,9 +212,11 @@ public final class TelemetryClient: @unchecked Sendable {
 
     // MARK: - Recording
 
-    public func record(_ item: TelemetryItem) {
+    /// - Parameter scrub: nil follows `Configuration.scrubPolicy`; true scrubs every free string of the item; false none
+    public func record(_ item: TelemetryItem, scrub override: Bool? = nil) {
         let date = now()
-        let clean = item.scrubbed(with: scrub)
+        let policy = override.map { $0 ? ScrubPolicy.all : .none } ?? configuration.scrubPolicy
+        let clean = item.scrubbed(with: scrub, policy: policy)
         let outcome = state.withLock { state -> (session: TelemetrySession, flush: TimeInterval?)? in
             guard state.consent, state.remote != .disabled else { return nil }
             let (session, isNew) = TelemetrySession.next(state.session, now: date, inactivityTimeout: configuration.sessionInactivityTimeout)
@@ -234,7 +239,7 @@ public final class TelemetryClient: @unchecked Sendable {
 
     /// At most one per `interval` per `key`; the one sent carries `suppressed`, how many were dropped since . Returns whether it was recorded.
     @discardableResult
-    public func recordThrottled(_ event: FaroEvent, key: String, interval: TimeInterval) -> Bool {
+    public func recordThrottled(_ event: FaroEvent, key: String, interval: TimeInterval, scrub: Bool? = nil) -> Bool {
         let date = now()
         let suppressed = state.withLock { state -> Int? in
             if let entry = state.throttled[key], date.timeIntervalSince(entry.sentAt) < interval {
@@ -248,7 +253,7 @@ public final class TelemetryClient: @unchecked Sendable {
         guard let suppressed else { return false }
         var event = event
         event.attributes = (event.attributes ?? [:]).merging(["suppressed": String(suppressed)]) { _, new in new }
-        record(.event(event))
+        record(.event(event), scrub: scrub)
         return true
     }
 

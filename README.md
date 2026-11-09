@@ -87,7 +87,7 @@ All of the tunables have defaults; the identifying fields (endpoint, app, browse
 are required and have none. See `TelemetryClient.Configuration` for the full list: `sdk` (defaults to this library),
 `sessionAttributes`, `consentDefault`, `errorKind`, `maxErrorValueLength` (500), `flushDelay` (5 s), `maxBatch` (50),
 `maxPending` (500), `maxStoredBytes` (512 KiB), `maxStoredAge` (24 h), `backoff` ([5, 30, 120, 600] s),
-`sessionInactivityTimeout` (15 min, no maximum length), `extraSecretParameters`, `extraScrubPatterns`.
+`sessionInactivityTimeout` (15 min, no maximum length), `extraSecretParameters`, `extraScrubPatterns`, `scrubPolicy`.
 
 `errorKind` turns an `Error` into a stable, low-cardinality string that is put in front of its message. The default is
 `domain#code`. Replace it if your errors carry a better kind; it must not include user info.
@@ -102,6 +102,23 @@ are required and have none. See `TelemetryClient.Configuration` for the full lis
   `[REDACTED]`). The scrub fails closed: if a pattern does not compile, every string is replaced by `[REDACTED]`. It is a
   safety net, not a licence to put personal data in attributes. Error messages are sent (scrubbed); if yours can contain
   personal data, set `errorKind` and consider your own wrapper.
+- **Configurable scrubbing.** The default is everything scrubbed. `Configuration.scrubPolicy` (a `ScrubPolicy`) switches
+  fields off one by one: `eventAttributes`, `logMessages`, `logContext`, `exceptionValues`, `exceptionContext`,
+  `measurementContext` (all true by default). The presets are `.all` (the default) and `.none`. Every recording function
+  (`event`, `eventThrottled`, `error`, `log`, `measurement`, and `TelemetryClient.record`) takes a last, optional
+  `scrub: Bool?`: `nil` follows the policy, `true` scrubs every free string of that item, `false` none of them. Names,
+  types, levels, `where`, timestamps and meta are not free text and are never scrubbed. When scrubbing runs it still fails
+  closed. Whatever you turn off is sent as is: keeping personal data and credentials out of it is then your app's
+  responsibility.
+
+  ```swift
+  var configuration = TelemetryClient.Configuration(/* ... */)
+  configuration.scrubPolicy = ScrubPolicy(eventAttributes: true, exceptionValues: false)  // raw error messages only
+  // configuration.scrubPolicy = .none                                                    // nothing scrubbed
+
+  Telemetry.event("link_opened", ["url": url], scrub: true)   // always scrubbed, whatever the policy
+  Telemetry.error(error, "import", scrub: false)              // never scrubbed, whatever the policy
+  ```
 - **Consent.** Honour the user's choice: `consentDefault` is false, so a host that wants opt-out sets it to true
   deliberately. Turning consent off deletes the queue and the offline file.
 - **User id.** Use an opaque, stable identifier (such as an identity provider's subject or a random UUID), never an e-mail
