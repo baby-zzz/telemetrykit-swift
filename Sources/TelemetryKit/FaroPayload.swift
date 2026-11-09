@@ -197,7 +197,11 @@ public enum TelemetryItem: Codable, Equatable, Sendable {
     /// The same item with its free strings scrubbed as `policy` says (default: all of them). Names, types, levels,
     /// `where`, timestamps and meta are the host's own constants and are sent as they are.
     public func scrubbed(with scrub: TelemetryScrub = .default, policy: ScrubPolicy = .all) -> TelemetryItem {
-        func scrubMap(_ map: [String: String]?, _ on: Bool) -> [String: String]? { on ? map?.mapValues { scrub.text($0) } : map }
+        // `where` and `category` are set by the library from the host's constants, not free text
+        func scrubMap(_ map: [String: String]?, _ on: Bool) -> [String: String]? {
+            guard on, let map else { return map }
+            return map.reduce(into: [:]) { $0[$1.key] = ["where", "category"].contains($1.key) ? $1.value : scrub.text($1.value) }
+        }
         switch self {
         case .event(var event):
             event.attributes = scrubMap(event.attributes, policy.eventAttributes)
@@ -208,10 +212,7 @@ public enum TelemetryItem: Codable, Equatable, Sendable {
             return .log(log)
         case .exception(var exception):
             if policy.exceptionValues { exception.value = scrub.text(exception.value) }
-            if policy.exceptionContext, let context = exception.context {
-                // `where` is the host's constant, not free text
-                exception.context = context.reduce(into: [:]) { $0[$1.key] = $1.key == "where" ? $1.value : scrub.text($1.value) }
-            }
+            exception.context = scrubMap(exception.context, policy.exceptionContext)
             return .exception(exception)
         case .measurement(var measurement):
             measurement.context = scrubMap(measurement.context, policy.measurementContext)

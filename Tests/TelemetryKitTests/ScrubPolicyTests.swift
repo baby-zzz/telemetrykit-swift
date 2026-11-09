@@ -12,7 +12,7 @@ struct ScrubPolicyTests {
     /// One of each item, every free string holding an e-mail address
     private static func items() -> [TelemetryItem] {
         [.event(FaroEvent(name: "e", domain: "d", timestamp: "t", attributes: ["a": secret])),
-         .log(FaroLog(message: secret, level: .warn, timestamp: "t", context: ["c": secret])),
+         .log(FaroLog(message: secret, level: .warn, timestamp: "t", context: ["c": secret, "category": "cat"])),
          .exception(FaroException(type: "T", value: secret, timestamp: "t", context: ["where": "w", "x": secret])),
          .measurement(FaroMeasurement(type: "m", values: ["v": 1], timestamp: "t", context: ["c": secret]))]
     }
@@ -121,6 +121,7 @@ struct ScrubPolicyTests {
             switch item {
             case .event(let event): #expect(event.attributes?["a"] == TelemetryScrub.redacted)
             case .log(let log): #expect(log.message == TelemetryScrub.redacted && log.context?["c"] == TelemetryScrub.redacted)
+                #expect(log.context?["category"] == "cat")
             case .exception(let exception):
                 #expect(exception.value == TelemetryScrub.redacted && exception.context?["x"] == TelemetryScrub.redacted)
                 #expect(exception.context?["where"] == "w")
