@@ -1,0 +1,15 @@
+# The package's rules except what tests do on purpose
+disabled_rules:
+  # A failed unwrap, cast or try fails the test, which is what the test wants
+  - force_cast
+  - force_try
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - cyclomatic_complexity
+  - file_length
+  - function_body_length
+  - large_tuple
+  - type_body_length
+  # #expect(x == []) / == "" prints the actual value when it fails
+  - empty_collection_literal
+  - empty_string

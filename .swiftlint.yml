@@ -1,0 +1,87 @@
+# SwiftLint for the package (CI runs it when swiftlint is installed). Rules follow the app this
+# library was extracted from; fix the code, or change a rule here with the reason, rather than adding inline suppressions.
+included:
+  - Sources
+  - Tests
+excluded:
+  - .build
+
+disabled_rules:
+  # Both styles are in the code and Swift accepts trailing commas everywhere since 6.1
+  - trailing_comma
+  - todo
+
+opt_in_rules:
+  - array_init
+  - closure_spacing
+  - collection_alignment
+  - comma_inheritance
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - contains_over_first_not_nil
+  - contains_over_range_nil_comparison
+  - direct_return
+  - discouraged_assert
+  - empty_collection_literal
+  - empty_count
+  - empty_string
+  - fatal_error_message
+  - first_where
+  - flatmap_over_map_reduce
+  - identical_operands
+  - implicitly_unwrapped_optional
+  - incompatible_concurrency_annotation
+  - joined_default_parameter
+  - last_where
+  - legacy_multiple
+  - lower_acl_than_parent
+  - modifier_order
+  - operator_usage_whitespace
+  - optional_enum_case_matching
+  - prefer_condition_list
+  - prefer_self_type_over_type_of_self
+  - prefer_zero_over_explicit_init
+  - reduce_into
+  - redundant_nil_coalescing
+  - redundant_type_annotation
+  - self_binding
+  - shorthand_optional_binding
+  - sorted_first_last
+  - superfluous_else
+  - toggle_bool
+  - unhandled_throwing_task
+  - unneeded_parentheses_in_closure_argument
+  - yoda_condition
+
+# Swift lines go to about 180 (comments wrap at 120)
+line_length:
+  warning: 180
+  error: 250
+  ignores_urls: true
+identifier_name:
+  min_length: 1
+  max_length: 60
+  allowed_symbols: ["_"]
+type_name:
+  min_length: 1
+  max_length: 60
+cyclomatic_complexity:
+  warning: 16
+  error: 25
+  ignores_case_statements: true
+function_body_length:
+  warning: 90
+  error: 150
+type_body_length:
+  warning: 600
+  error: 800
+file_length:
+  warning: 800
+  error: 1200
+  ignore_comment_only_lines: true
+function_parameter_count:
+  warning: 9
+  error: 12
+large_tuple:
+  warning: 4
+  error: 5
