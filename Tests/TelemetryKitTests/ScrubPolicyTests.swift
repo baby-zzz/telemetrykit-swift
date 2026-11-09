@@ -100,6 +100,19 @@ struct ScrubPolicyTests {
         #expect(Self.scrubbedFields(rest) == Set(Field.allCases).subtracting([field]))
     }
 
+    @Test func callerKeysNamedLikeLibraryKeysAreStillScrubbed() async throws {
+        var configuration = TelemetryTests.configuration()
+        configuration.scrubPolicy = .all
+        let (client, transport) = try TelemetryTests.client(remote: .enabled, configuration: configuration)
+        client.record(.event(FaroEvent(name: "e", domain: "d", timestamp: "t", attributes: ["category": Self.secret, "where": Self.secret])))
+        client.record(.measurement(FaroMeasurement(type: "m", values: [:], timestamp: "t", context: ["category": Self.secret, "where": Self.secret])))
+        await client.flush()
+        let payload = try JSONDecoder().decode(FaroPayload.self, from: #require(await transport.bodies.first))
+        let event = try #require(payload.events?.first { $0.name == "e" })
+        #expect(event.attributes == ["category": Self.clean, "where": Self.clean])
+        #expect(payload.measurements?.first?.context == ["category": Self.clean, "where": Self.clean])
+    }
+
     @Test func perCallTrueBeatsNonePolicy() async throws {
         let items = try await Self.sent(policy: .none, scrub: true)
         #expect(Self.scrubbedFields(items) == Set(Field.allCases))

@@ -197,10 +197,11 @@ public enum TelemetryItem: Codable, Equatable, Sendable {
     /// The same item with its free strings scrubbed as `policy` says (default: all of them). Names, types, levels,
     /// `where`, timestamps and meta are the host's own constants and are sent as they are.
     public func scrubbed(with scrub: TelemetryScrub = .default, policy: ScrubPolicy = .all) -> TelemetryItem {
-        // `where` and `category` are set by the library from the host's constants, not free text
-        func scrubMap(_ map: [String: String]?, _ on: Bool) -> [String: String]? {
+        // `exempt` is a key the library fills from the host's constants (`where` in an exception's context, `category` in a
+        // log's); in the maps the caller fills (event attributes, measurement context) nothing is exempt.
+        func scrubMap(_ map: [String: String]?, _ on: Bool, exempt: String? = nil) -> [String: String]? {
             guard on, let map else { return map }
-            return map.reduce(into: [:]) { $0[$1.key] = ["where", "category"].contains($1.key) ? $1.value : scrub.text($1.value) }
+            return map.reduce(into: [:]) { $0[$1.key] = $1.key == exempt ? $1.value : scrub.text($1.value) }
         }
         switch self {
         case .event(var event):
@@ -208,11 +209,11 @@ public enum TelemetryItem: Codable, Equatable, Sendable {
             return .event(event)
         case .log(var log):
             if policy.logMessages { log.message = scrub.text(log.message) }
-            log.context = scrubMap(log.context, policy.logContext)
+            log.context = scrubMap(log.context, policy.logContext, exempt: "category")
             return .log(log)
         case .exception(var exception):
             if policy.exceptionValues { exception.value = scrub.text(exception.value) }
-            exception.context = scrubMap(exception.context, policy.exceptionContext)
+            exception.context = scrubMap(exception.context, policy.exceptionContext, exempt: "where")
             return .exception(exception)
         case .measurement(var measurement):
             measurement.context = scrubMap(measurement.context, policy.measurementContext)
