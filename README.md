@@ -89,6 +89,16 @@ get scrubbed. `TelemetryClient` can also be used directly (it is what the facade
 | Consent | `Telemetry.setConsent(_:)`, stored under `consentKey` | Off drops everything queued and stored, and records nothing |
 | Remote flag | `Telemetry.setRemoteEnabled(_:)` | `nil` = unknown: record in memory only. `false`: drop everything. `true`: send |
 
+### User
+
+`Telemetry.setUser(_:)` takes an opaque id after a sign-in or a restored session, and `nil` after a sign-out. Items carry
+the user (Faro `meta.user.id`, Loki `user_id`) from the moment they are recorded. A new id (none before, or a different
+one) records one `user_identified` event in `eventDomain`, carrying that user, so a session whose `session_start` was
+recorded before the sign-in still names its user even when nothing else is recorded afterwards. It is recorded like any
+other item: nothing without consent or with the remote flag off, held in memory while the flag is unknown, and it counts
+as activity, so with no session running it starts one (`session_start`, then `user_identified`, both with the user). The
+same id again, or `nil`, records nothing.
+
 ### Configuration
 
 All of the tunables have defaults; the identifying fields (endpoint, app, browser, event domain, the three keys, `release`)

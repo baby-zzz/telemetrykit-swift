@@ -75,7 +75,8 @@ public enum Telemetry {
         client?.setRemote(enabled.map { $0 ? .enabled : .disabled } ?? .unknown)
     }
 
-    /// After a sign-in or a restored session; nil after a sign-out
+    /// After a sign-in or a restored session; nil after a sign-out. A new id records `user_identified`
+    /// (see `TelemetryClient.setUser`)
     public static func setUser(_ id: String?) {
         client?.setUser(id)
     }

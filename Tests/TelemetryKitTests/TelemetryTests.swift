@@ -121,16 +121,18 @@ struct TelemetryTests {
     }
 
     @Test func sendsOneRequestPerMetaWithSessionStartFirst() async throws {
-        let (client, transport) = try Self.client(remote: .enabled)
+        // The flag opens last: the flush it schedules then finds the whole queue (the flush() below may join it)
+        let (client, transport) = try Self.client()
         client.record(Self.event("before"))
         client.setUser("sub-1")
         client.record(Self.event("after"))
+        client.setRemote(.enabled)
         #expect(await client.flush())
         let payloads = try await transport.payloads()
         #expect(payloads.count == 2)
         #expect(payloads[0].events?.map(\.name) == ["session_start", "before"])
         #expect(payloads[0].meta.user == nil)
-        #expect(payloads[1].events?.map(\.name) == ["after"])
+        #expect(payloads[1].events?.map(\.name) == ["user_identified", "after"])
         #expect(payloads[1].meta.user?.id == "sub-1")
         #expect(payloads.allSatisfy { $0.meta.session?.id == payloads[0].meta.session?.id })
         #expect(client.pendingCount == 0)
@@ -171,6 +173,94 @@ struct TelemetryTests {
         withoutConsent.setConsent(false)
         withoutConsent.touchSession()
         #expect(withoutConsent.pendingCount == 0)
+    }
+
+    // MARK: - User
+
+    @Test func aNewUserRecordsUserIdentifiedWithTheUserInItsMeta() async throws {
+        let (client, transport) = try Self.client(remote: .enabled)
+        client.touchSession()
+        #expect(await client.flush())
+        client.setUser("sub-1")
+        #expect(await client.flush())
+        let payloads = try await transport.payloads()
+        let payload = try #require(payloads.last)
+        #expect(payload.events?.map(\.name) == ["user_identified"])
+        #expect(payload.events?.first?.domain == "test")
+        #expect(payload.events?.first?.attributes == nil)
+        #expect(payload.meta.user?.id == "sub-1")
+        #expect(payload.meta.session?.id == payloads.first?.meta.session?.id)
+    }
+
+    @Test func theSameUserAgainOrASignOutRecordsNothing() throws {
+        // The flag not known yet: items stay queued, so no flush can race the counts
+        let (client, _) = try Self.client()
+        client.setUser("sub-1")
+        #expect(client.pendingCount == 2) // session_start + user_identified
+        client.setUser("sub-1")
+        #expect(client.pendingCount == 2)
+        client.setUser(nil)
+        #expect(client.pendingCount == 2)
+        client.setUser("")
+        #expect(client.pendingCount == 2)
+    }
+
+    @Test func anotherUserRecordsUserIdentifiedAgain() async throws {
+        let (client, transport) = try Self.client(remote: .enabled)
+        client.setUser("sub-1")
+        client.setUser("sub-2")
+        client.setUser(nil)
+        client.setUser("sub-2") // signed out in between: a new user again
+        #expect(await client.flush())
+        let identified = try await transport.payloads().flatMap { payload in
+            (payload.events ?? []).filter { $0.name == "user_identified" }.map { _ in payload.meta.user?.id }
+        }
+        #expect(identified == ["sub-1", "sub-2", "sub-2"])
+    }
+
+    @Test func noUserIdentifiedWithoutConsentOrWithTheFlagOffButLaterItemsCarryTheUser() async throws {
+        let (off, _) = try Self.client(remote: .disabled)
+        off.setUser("sub-1")
+        #expect(off.pendingCount == 0)
+
+        let (withoutConsent, transport) = try Self.client(remote: .enabled)
+        withoutConsent.setConsent(false)
+        withoutConsent.setUser("sub-1")
+        #expect(withoutConsent.pendingCount == 0)
+        withoutConsent.setConsent(true)
+        withoutConsent.record(Self.event("a"))
+        #expect(await withoutConsent.flush())
+        let payloads = try await transport.payloads()
+        #expect(payloads.flatMap { $0.events ?? [] }.map(\.name) == ["session_start", "a"])
+        #expect(payloads.allSatisfy { $0.meta.user?.id == "sub-1" })
+    }
+
+    @Test func anUnknownFlagHoldsUserIdentifiedInMemory() async throws {
+        let (client, transport) = try Self.client()
+        client.setUser("sub-1")
+        #expect(client.pendingCount == 2)
+        #expect(await client.flush())
+        #expect(await transport.bodies.isEmpty)
+        client.setRemote(.enabled)
+        #expect(await client.flush())
+        let payloads = try await transport.payloads()
+        #expect(payloads.count == 1 && payloads.first?.events?.map(\.name) == ["session_start", "user_identified"])
+    }
+
+    @Test func withNoSessionRunningSessionStartAndUserIdentifiedBothCarryTheUser() async throws {
+        let box = ClockBox(Date(timeIntervalSince1970: 1_000))
+        let (client, transport) = try Self.client(remote: .enabled, now: { box.now })
+        client.touchSession()
+        #expect(await client.flush())
+        let first = try await transport.payloads().first?.meta.session?.id
+
+        box.now = box.now + 16 * 60 // the session timed out
+        client.setUser("sub-1")
+        #expect(await client.flush())
+        let payload = try #require(try await transport.payloads().last)
+        #expect(payload.events?.map(\.name) == ["session_start", "user_identified"])
+        #expect(payload.meta.user?.id == "sub-1")
+        #expect(payload.meta.session?.id != first)
     }
 
     @Test func serverErrorsAreRetriedAndRefusalsDropped() async throws {

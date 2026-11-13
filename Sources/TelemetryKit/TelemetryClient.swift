@@ -111,6 +111,9 @@ public final class TelemetryClient: @unchecked Sendable {
         }
     }
 
+    /// The event `setUser` records for a new user, in `Configuration.eventDomain`
+    private static let userIdentified = "user_identified"
+
     public enum RemoteGate: Sendable, Equatable {
         /// No answer from the host's flag yet: record, but only in memory
         case unknown
@@ -192,9 +195,16 @@ public final class TelemetryClient: @unchecked Sendable {
         if open { scheduleFlush(after: 0) }
     }
 
-    /// An opaque user id after a sign-in, nil after a sign-out; items recorded from now on carry it
+    /// An opaque user id after a sign-in, nil after a sign-out; items recorded from now on carry it. A new id (none
+    /// before, or a different one) records `user_identified` with it, so a session that recorded nothing else since the
+    /// sign-in still names its user; like any item it counts as activity (it may start a session) and passes the gates.
+    /// The same id again, or nil, records nothing.
     public func setUser(_ id: String?) {
-        state.withLock { $0.userID = id?.isEmpty == false ? id : nil }
+        guard let id, !id.isEmpty else {
+            state.withLock { $0.userID = nil }
+            return
+        }
+        enqueue(nil, identify: id)
     }
 
     public func setView(_ name: String?) {
@@ -225,10 +235,21 @@ public final class TelemetryClient: @unchecked Sendable {
         enqueue(nil)
     }
 
-    private func enqueue(_ clean: TelemetryItem?) {
+    /// Queues `item` (nil: only the session step). With `identify`, the user becomes that id first, in the same lock, and
+    /// the item is `user_identified` (the library's own event, with no free strings, so like `session_start` it is not
+    /// scrubbed); nothing is recorded when it is the current user already.
+    private func enqueue(_ item: TelemetryItem?, identify: String? = nil) {
         let date = now()
         let outcome = state.withLock { state -> (session: TelemetrySession, flush: TimeInterval?)? in
+            if let identify {
+                guard identify != state.userID else { return nil }
+                state.userID = identify
+            }
             guard state.consent, state.remote != .disabled else { return nil }
+            let clean = item ?? identify.map { _ in
+                TelemetryItem.event(FaroEvent(name: Self.userIdentified, domain: configuration.eventDomain,
+                                              timestamp: FaroTimestamp.string(date), attributes: nil))
+            }
             let (session, isNew) = TelemetrySession.next(state.session, now: date, inactivityTimeout: configuration.sessionInactivityTimeout)
             state.session = session
             let meta = meta(state, session: session)
