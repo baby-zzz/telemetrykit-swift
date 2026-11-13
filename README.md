@@ -20,7 +20,7 @@ Swift Package Manager, in `Package.swift`:
 <!-- x-release-please-start-version -->
 ```swift
 dependencies: [
-    .package(url: "https://github.com/baby-zzz/telemetrykit-swift.git", from: "0.3.0"),
+    .package(url: "https://github.com/baby-zzz/telemetrykit-swift.git", from: "0.4.0"),
 ],
 targets: [
     .target(name: "MyApp", dependencies: [.product(name: "TelemetryKit", package: "telemetrykit-swift")]),
