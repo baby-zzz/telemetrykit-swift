@@ -103,9 +103,11 @@ struct ScrubPolicyTests {
     @Test func callerKeysNamedLikeLibraryKeysAreStillScrubbed() async throws {
         var configuration = TelemetryTests.configuration()
         configuration.scrubPolicy = .all
-        let (client, transport) = try TelemetryTests.client(remote: .enabled, configuration: configuration)
+        // The flag opens last, so the flush it schedules cannot send the event without the measurement
+        let (client, transport) = try TelemetryTests.client(configuration: configuration)
         client.record(.event(FaroEvent(name: "e", domain: "d", timestamp: "t", attributes: ["category": Self.secret, "where": Self.secret])))
         client.record(.measurement(FaroMeasurement(type: "m", values: [:], timestamp: "t", context: ["category": Self.secret, "where": Self.secret])))
+        client.setRemote(.enabled)
         await client.flush()
         let payload = try JSONDecoder().decode(FaroPayload.self, from: #require(await transport.bodies.first))
         let event = try #require(payload.events?.first { $0.name == "e" })

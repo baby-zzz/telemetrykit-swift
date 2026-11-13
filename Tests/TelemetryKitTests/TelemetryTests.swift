@@ -140,10 +140,12 @@ struct TelemetryTests {
 
     @Test func becomingActiveStartsASessionWithoutOtherItems() async throws {
         let box = ClockBox(Date(timeIntervalSince1970: 1_000))
-        let (client, transport) = try Self.client(remote: .enabled, now: { box.now })
+        // The flag opens after the first count: the flush it schedules could otherwise send session_start before it
+        let (client, transport) = try Self.client(now: { box.now })
         client.touchSession()
         client.touchSession() // same session: nothing more
         #expect(client.pendingCount == 1)
+        client.setRemote(.enabled)
         #expect(await client.flush())
         var payloads = try await transport.payloads()
         #expect(payloads.count == 1 && payloads[0].events?.map(\.name) == ["session_start"])
@@ -302,10 +304,12 @@ struct TelemetryTests {
         client.persist()
         #expect(FileManager.default.fileExists(atPath: store.path))
 
-        let (next, transport) = try Self.client(store: store, remote: .enabled)
+        // The flag opens after the count: the flush it schedules could otherwise send the restored items before it
+        let (next, transport) = try Self.client(store: store)
         next.restore()
         #expect(!FileManager.default.fileExists(atPath: store.path))
         #expect(next.pendingCount == 2)
+        next.setRemote(.enabled)
         #expect(await next.flush())
         #expect(try await transport.payloads().flatMap { $0.events ?? [] }.map(\.name) == ["session_start", "offline"])
 
